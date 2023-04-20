@@ -3,10 +3,11 @@ node_modules
 /build
 /public/build
 .env
+.npmrc
 
 /cypress/screenshots
 /cypress/videos
 /prisma/data.db
 /prisma/data.db-journal
-
+/tmp
 /app/styles/tailwind.css
