@@ -30,7 +30,7 @@ export const action = async ({ request }: ActionArgs) => {
 
   const post = await createPost({title, slug, markdown});
   const location = new URL(post.slug, request.url + (request.url.endsWith("/")? "" : "/"));
-  console.log(location);
+  // console.log(location);
   return json(
     post,
     {status: 201, headers: {location: location.href}}

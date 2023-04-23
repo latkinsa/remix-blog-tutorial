@@ -47,7 +47,7 @@ export const action = async ({ request, params }: ActionArgs) => {
       post.slug,
       request.url.endsWith("/") ? request.url.slice(0, -1) : request.url
     );
-    console.log(location);
+    // console.log(location);
     return json(post, { status: 200, headers: { location: location.href } });
   }
 };

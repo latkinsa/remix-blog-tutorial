@@ -1,3 +1,4 @@
+import { json } from "@remix-run/node";
 import { useMatches } from "@remix-run/react";
 import { useMemo } from "react";
 
@@ -68,4 +69,9 @@ export function useUser(): User {
 
 export function validateEmail(email: unknown): email is string {
   return typeof email === "string" && email.length > 3 && email.includes("@");
+}
+
+export function checkBearerToken(request: Request) {
+  // just a stub
+  if (!request.headers.get("authorization")) throw json("Not Authorized", 401);
 }
