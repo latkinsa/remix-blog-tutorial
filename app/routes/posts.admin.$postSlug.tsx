@@ -77,7 +77,7 @@ export default function EditPost() {
   return (
     <div>
     <Form method="post">
-      <h1 className="text-2xl">New Post</h1>
+      <h1 className="text-2xl">Edit Post</h1>
       <p>
         <label>
           Post Title:{" "}
@@ -128,7 +128,7 @@ export default function EditPost() {
           className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 focus:bg-blue-400 disabled:bg-blue-300"
           disabled={isUpdating}
         >
-          {isUpdating ? "Updating..." : "Update Post"}
+          {isUpdating ? "Submitting..." : "Update Post"}
         </button>
       </p>
     </Form>
@@ -138,7 +138,7 @@ export default function EditPost() {
           className="rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 focus:bg-red-400 disabled:bg-red-300"
           disabled={isUpdating}
         >
-          {isUpdating ? "Deleting..." : "Delete Post"}
+          {isUpdating ? "Submitting..." : "Delete Post"}
         </button>
     </Form>
     </div>
