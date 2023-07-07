@@ -1,0 +1,770 @@
+openapi: 3.0.3
+info:
+  title: CFS API
+  description: |-
+    This is API contract for Content Flagging (reporting) Service of  CZI-E Platform, maintained by DPF team.
+
+    Some useful links:
+    - [The Data Model](https://lucid.app/lucidchart/3883b042-4567-48ac-8403-8b363dc452e2/edit?viewport_loc=75%2C314%2C957%2C523%2C0_0&invitationId=inv_91f62121-b464-4520-b53a-8b5d4409eb2e)
+    - [The Problem Statement](https://docs.google.com/document/d/1xCMAzRixi0Ihytq8H9V4CggYRphchoWSBxXs8HhNyyQ/edit?pli=1)
+    - [The Design Document](https://docs.google.com/document/d/1yXmw7nH_oz1Ra49UMrHoAfDcMbZxz1t3FQz86IbFpdI/edit)
+  # termsOfService: http://swagger.io/terms/
+  contact:
+    email: slatkin@chanzuckerberg.com
+    name: Sergey Latkin
+  # license:
+  #   name: Apache 2.0
+  #   url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 0.0.1
+externalDocs:
+  description: Find out more about Swagger
+  url: http://swagger.io
+servers:
+  - url: https://localhost:3000/api/
+    description: local dev
+tags:
+  - name: actions
+    description: Report actions
+    externalDocs:
+      description: Find out more
+      url: http://swagger.io
+  - name: reports
+    description: Search and organize reports
+    externalDocs:
+      description: Find out more about our store
+      url: http://swagger.io
+  - name: legal
+    description: Deletion and export
+paths:
+  /reports:
+    post:
+      tags:
+        - actions
+      summary: File a new report
+      description: Create a new report by posting the content flag (content report) form
+      operationId: addReport
+      requestBody:
+        description: Report form payload (content flag)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Report'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Report'
+        required: true
+      responses:
+        '201':
+          description: Created, successful operation
+          headers:
+            Location:
+              description: URL to the report view
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+      security:
+        - cfs_auth:
+            - write:reports
+
+    get:
+      tags:
+        - reports
+      summary: List reports
+      description: Sort, filter, and page through reports. Values can be comma separated
+      operationId: listReports
+      parameters:
+        - name: sortBy
+          in: query
+          description: Sort results by (comma separated, prefix with dash - for DESC)
+          required: false
+          explode: true
+          schema:
+            type: string
+            default: '-createdAt'
+            enum:
+              - createdAt
+              - updatedAt
+              - status
+              - reason
+              - severity
+              - app
+              - tenancy
+              - ccids
+              - ids
+              - '-createdAt'
+              - '-updatedAt'
+              - '-status'
+              - '-reason'
+              - '-severity'
+              - '-app'
+              - '-tenancy'
+              - '-ccids'
+              - '-ids'
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          explode: false
+          schema:
+            type: integer
+            default: 0
+        - name: pageSize
+          in: query
+          description: Page size, default 50
+          required: false
+          explode: false
+          schema:
+            type: integer
+            default: 50
+
+        - name: ids
+          in: query
+          description: Filter by Report IDs
+          required: false
+          explode: true
+          schema:
+            type: string
+        - name: ccids
+          in: query
+          description: Filter by Content container IDs
+          required: false
+          explode: true
+          schema:
+            type: string
+        - name: severity
+          in: query
+          description: Filter by report severity, display all by default
+          required: false
+          explode: true
+          schema:
+            $ref: '#/components/schemas/ReportSeverity'
+        - name: app
+          in: query
+          description: Filter by app (reportingApp)
+          required: false
+          explode: true
+          schema:
+            type: string
+        - name: tenancy
+          in: query
+          description: Filter by Client or group ID (TBD) (reporterTenancy)
+          required: false
+          explode: true
+          schema:
+            type: string
+        - name: reason
+          in: query
+          description: Filter by report type, display all by default
+          required: false
+          explode: true
+          schema:
+            $ref: '#/components/schemas/ReportReason'
+        - name: createdAt
+          in: query
+          description: Filter by created time
+          required: false
+          explode: true
+          schema:
+            type: string
+            format: date-time
+        - name: updatedAt
+          in: query
+          description: Filter by updated time
+          required: false
+          explode: true
+          schema:
+            type: string
+            format: date-time
+        - name: status
+          in: query
+          description: Filter by status, open by default
+          required: false
+          explode: true
+          schema:
+            $ref: '#/components/schemas/ReportStatus'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportList'          
+        '400':
+          description: Bad Request - Invalid sortBy value
+        '401':
+          description: Unauthorized
+      security:
+        - cfs_auth:
+            - read:reports
+
+  /reports/findByUser:
+    # We need to think through paging for those search results w/o need to re-submit.
+    # Maybe to use hashes in HATEOAS links?
+    post:
+      tags:
+        - reports
+      summary: Find Reports by user
+      description: Either userId, userEmail, or adminId values must be provided
+      operationId: findReportsByUser
+      parameters:
+        - name: sortBy
+          in: query
+          description: Sort results by (comma separated, prefix with dash - for DESC)
+          required: false
+          explode: true
+          schema:
+            type: string
+            default: '-createdAt'
+            enum:
+              - createdAt
+              - updatedAt
+              - status
+              - reason
+              - severity
+              - app
+              - tenancy
+              - ccids
+              - ids
+              - '-createdAt'
+              - '-updatedAt'
+              - '-status'
+              - '-reason'
+              - '-severity'
+              - '-app'
+              - '-tenancy'
+              - '-ccids'
+              - '-ids'
+        - name: page
+          in: query
+          description: Page number, starting with 1
+          required: false
+          explode: false
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          description: Page size, default 50
+          required: false
+          explode: false
+          schema:
+            type: integer
+            default: 50
+      requestBody:
+        description: Report form payload (content flag)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportByUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportByUser'
+        required: true
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportList'          
+        '400':
+          description: Bad request - parameters must be valid
+        '401':
+          description: Unauthorized
+      security:
+        - cfs_auth:
+            - read:reports
+    get:
+      tags:
+        - reports
+      summary: Page through reports by user
+      description: for HATEOAS links in the results of the POST request
+      operationId: findMoreReportsByUser
+      parameters:
+        - name: sortBy
+          in: query
+          description: Sort results by (comma separated, prefix with dash - for DESC)
+          required: false
+          explode: true
+          schema:
+            type: string
+            default: '-createdAt'
+            enum:
+              - createdAt
+              - updatedAt
+              - status
+              - reason
+              - severity
+              - app
+              - tenancy
+              - ccids
+              - ids
+              - '-createdAt'
+              - '-updatedAt'
+              - '-status'
+              - '-reason'
+              - '-severity'
+              - '-app'
+              - '-tenancy'
+              - '-ccids'
+              - '-ids'
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          explode: false
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          description: Page size, default 50
+          required: false
+          explode: false
+          schema:
+            type: integer
+            default: 50
+        - name: requestId
+          in: query
+          description: Search request ID
+          required: true
+          explode: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportList'          
+        '400':
+          description: Bad request - parameters must be valid
+        '404':
+          description: Request ID was not found
+        '401':
+          description: Unauthorized
+      security:
+        - cfs_auth:
+            - read:reports
+
+  /reports/{trackingId}:
+    parameters:
+      - name: trackingId
+        in: path
+        description: ID of the report
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - reports
+      summary: Report View
+      description: Return a Report View representation for given ID
+      operationId: getReportView
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportView'          
+        '401':
+          description: Unauthorized
+        '404':
+          description: Report not found
+      security:
+        - cfs_auth:
+            - read:reports
+
+    delete:
+      tags:
+        - actions
+      summary: Deletes a report
+      description: Delete report
+      operationId: deleteReport
+      responses:
+        '204':
+          description: No content - success
+        '401':
+          description: Unauthorized
+        '404':
+          description: Report not found
+      security:
+        - cfs_auth:
+            - read:reports
+            - delete:reports
+            
+    post:
+      tags:
+        - actions
+      summary: Perform an action
+      requestBody:
+        description: Report Action payload
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionListItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ActionListItem'
+        required: true
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportView'          
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+      security:
+        - cfs_auth:
+            - read:reports
+            - write:actions
+
+  /exportBulk:
+    post:
+      tags:
+        - legal
+      summary: Export selected reports
+      requestBody:
+        description: List of IDs
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportExport'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportExport'
+        required: true
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'          
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+      security:
+        - cfs_auth:
+            - read:reports
+
+  /deleteBulk:
+    post:
+      tags:
+        - legal
+      summary: Delete selected reports
+      requestBody:
+        description: List of IDs
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportExport'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportExport'
+        required: true
+      responses:
+        '204':
+          description: No content - success
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+      security:
+        - cfs_auth:
+            - read:reports
+            - delete:reports
+
+components:
+  schemas:
+    ReportStatus:
+      type: string
+      description: Report Status
+      default: open
+      example: open
+      enum:
+        - open
+        - closed
+        - escalation
+        - on-legal-hold
+        - pending
+    ReportSeverity:
+      type: string
+      enum:
+        - green
+        - yellow
+        - orange
+        - red
+      example: red
+    ReportReason:
+      type: string
+      description: type of the report selected
+      enum:
+        - abuse
+        - selfharm
+        - violence
+        - hatespeech
+        - other
+      example: other
+
+    Report:
+      type: object
+      properties:
+        trackingId:
+          type: string
+          description: Report ID (random ID)
+          example: 34395bed-5ad0-41ab-b407-9676fd603392
+        CCId:
+          type: string
+          description: Content container ID
+          example: 1xyzab/cxoo0orf
+        severity:
+          $ref: '#/components/schemas/ReportSeverity'
+        reporter:
+          type: string
+          description: Reporting user ID
+          example: f786b5ac-e18b-455a-a4e5-267808f062c3
+        reportingApp:
+          type: string
+          description: internal ID of the app from which the report was originated
+          example: pilot_A
+        reporterTenancy:
+          type: string
+          description: Client or group ID (TBD) of the user
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        otherReason:
+          type: string
+          nullable: true
+          example: I am upset about this
+        origin:
+          type: string
+          description: URL of the reported content, if available
+          example: https://pilot-a.com/posts/12345
+        createdAt:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          description: User ID (admin user)
+          
+    ReportListItem:
+      type: object
+      properties:
+        trackingId:
+          type: string
+          description: Report ID (random ID)
+          example: 34395bed-5ad0-41ab-b407-9676fd603392
+        CCId:
+          type: string
+          description: Content container ID
+          example: 1xyzab/cxoo0orf
+        severity:
+          $ref: '#/components/schemas/ReportSeverity'
+        reportingApp:
+          type: string
+          description: internal ID of the app from which the report was originated
+          example: pilot_A
+        reporterTenancy:
+          type: string
+          description: Client or group ID (TBD) of the user
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        createdAt:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        updatedAt:
+          type: string
+          format: date-time
+          
+    ReportList:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+          default: 1
+        pageSize:
+          type: integer
+          example: 20
+          default: 50
+        lastPage:
+          type: boolean
+          example: false
+        requestId:
+          type: string
+          nullable: true
+          example: '037fa2a46ef58f6f7dc00ba9faa39cca'
+          description: ID of FindByUser request. Null for other request types.
+        links:
+          type: object
+          description: HATEOAS-type links for pagination. Links will have requestId embedded in them, when necessary
+          properties:
+            self:
+              type: string
+              format: uri
+            next:
+              type: string
+              format: uri
+            prev:
+              type: string
+              format: uri
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportListItem'
+
+    ReportByUser:
+      type: object
+      description: Search by user form payload, one of the fields is required.
+      properties:
+        userId:
+          type: string
+        userEmail:
+          type: string
+        adminId:
+          type: string
+
+    ReportExport:
+      type: object
+      description: Export by ids.
+      properties:
+        trackingIds:
+          type: array
+          items:
+            type: string
+        format:
+          type: string
+          description: JSON or CSV
+          example: json
+          default: json
+          enum:
+            - json
+            - csv
+
+    ActionType:
+      type: string
+      description: Type of action on the report. Dismiss, delete-content, and set-status will close the report.
+      enum:
+        - dismiss
+        - dismiss-all
+        - dismiss-others
+        - set-status
+        - delete-content
+        - legal-hold
+        - escalate
+        - reopen
+        - other
+      example: other
+
+    ActionListItem:
+      type: object
+      description: When used as a request body, some fields are not required.
+      required:
+        - trackingId
+        - actionType
+        - createdBy
+      properties:
+        trackingId:
+          type: string
+          description: Report ID
+          example: 34395bed-5ad0-41ab-b407-9676fd603392
+        actionType:
+          $ref: '#/components/schemas/ActionType'
+        severity:
+          $ref: '#/components/schemas/ReportSeverity'
+        note:
+          type: string
+          nullable: true
+          description: optional notes about the action
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          description: admin user ID or name - TBD
+          example: admin_A
+
+    ReportView:
+      type: object
+      properties:
+        report:
+          $ref: '#/components/schemas/Report'
+        content:
+          type: object
+          description: domain-specific object representing content, TBD
+          example: '{comment: "bad language", user: "user_abcd"}'
+        related:
+          type: array
+          description: array of other reports for the same CCID
+          items:
+            $ref: '#/components/schemas/ReportListItem'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionListItem'
+
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        type:
+          type: string
+        message:
+          type: string
+  requestBodies:
+    Report:
+      description: Report payload
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Report'
+    ReportByUser:
+      description: Find Report by User request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReportByUser'
+  securitySchemes:
+    cfs_auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://petstore3.swagger.io/oauth/authorize
+          scopes:
+            write:reports: create reports
+            read:reports: search and read reports and actions
+            write:actions: create actions, update reports
+            delete:reports: delete reports and actions
+    api_key:
+      type: apiKey
+      name: api_key
+      in: header

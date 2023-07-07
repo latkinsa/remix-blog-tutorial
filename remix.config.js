@@ -10,5 +10,11 @@ module.exports = {
   ignoredRouteFiles: ["**/.*", "**/*.css", "**/*.test.{js,jsx,ts,tsx}"],
   serverDependenciesToBundle: [
     /^marked$/,
+    // /^swagger/,
+    // /highlight/,
+    /swagger-ui-react/,
+    /swagger-client/,
+    /react-syntax-highlighter/,
+    // /apidom-reference/,
   ],
 };
